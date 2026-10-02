@@ -48,7 +48,8 @@
         "trace_id": {
           "description": "Trace id W3C: 32 hex en minúscula, distinto de cero.",
           "type": "string",
-          "pattern": "^(?!0{32}$)[0-9a-f]{32}$"
+          "pattern": "^[0-9a-f]{32}$",
+          "not": { "const": "00000000000000000000000000000000" }
         },
         "received_at": {
           "description": "Reloj del Gateway. Clave de partición temporal de la hypertable.",
