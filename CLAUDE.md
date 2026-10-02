@@ -4,6 +4,10 @@ Sistema distribuido orientado a eventos para detección y mitigación en tiempo 
 
 Stack: Go (Gateway, sink), Python (simulador; luego scorer y batch), Kafka en modo KRaft con 1 broker, Redis x2, TimescaleDB, Docker Compose, Prometheus/Grafana/OpenTelemetry.
 
+
+
+No agregues líneas Co-Authored-By ni atribución a Claude en commits ni PRs
+
 ## Contexto (leer solo lo que haga falta)
 
 - Roadmap de trabajo actual: @docs/ROADMAP_FASE1.md
