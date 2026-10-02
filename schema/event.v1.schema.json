@@ -1,0 +1,238 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anomalous.local/schema/event.v1.json",
+  "title": "Anomalous event v1",
+  "description": "Evento persistido (el que viaja por Kafka y se guarda en TimescaleDB). La raíz valida el evento completo; $defs/ClientEvent valida lo que envía el cliente al Gateway, antes de que éste agregue sus campos. Las etiquetas de fraude NO existen en este contrato (ADR-004).",
+  "$ref": "#/$defs/Event",
+  "$defs": {
+    "Event": {
+      "description": "Evento completo: campos del cliente más campos que completa el Gateway.",
+      "allOf": [
+        { "$ref": "#/$defs/ClientFields" },
+        { "$ref": "#/$defs/GatewayFields" }
+      ],
+      "unevaluatedProperties": false
+    },
+    "ClientEvent": {
+      "description": "Cuerpo de POST /v1/events. El cliente no manda event_id, trace_id, received_at, actor_id, decision ni rules_fired.",
+      "$ref": "#/$defs/ClientFields",
+      "unevaluatedProperties": false
+    },
+    "ClientFields": {
+      "type": "object",
+      "required": ["schema_version", "event_type", "client_request_id", "occurred_at", "identity", "payload"],
+      "properties": {
+        "schema_version": { "const": 1 },
+        "event_type": { "enum": ["login_attempt", "account_created", "cart_action", "transaction", "read", "transaction_outcome"] },
+        "client_request_id": {
+          "description": "Identificador que genera el cliente. Une el evento con la etiqueta de verdad del simulador (ADR-004).",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "occurred_at": {
+          "description": "Reloj del cliente. No se mezcla con received_at.",
+          "$ref": "#/$defs/Timestamp"
+        },
+        "session_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "identity": { "$ref": "#/$defs/Identity" },
+        "payload": { "type": "object" }
+      },
+      "allOf": [{ "$ref": "#/$defs/PayloadByType" }]
+    },
+    "GatewayFields": {
+      "type": "object",
+      "required": ["event_id", "trace_id", "received_at", "actor_id", "actor_id_source", "decision", "rules_fired"],
+      "properties": {
+        "event_id": { "$ref": "#/$defs/UuidV7" },
+        "trace_id": {
+          "description": "Trace id W3C: 32 hex en minúscula, distinto de cero.",
+          "type": "string",
+          "pattern": "^(?!0{32}$)[0-9a-f]{32}$"
+        },
+        "received_at": {
+          "description": "Reloj del Gateway. Clave de partición temporal de la hypertable.",
+          "$ref": "#/$defs/Timestamp"
+        },
+        "actor_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "actor_id_source": {
+          "description": "Qué dato se usó como actor_id: usuario, si no dispositivo, si no IP.",
+          "enum": ["user", "device", "ip"]
+        },
+        "decision": { "enum": ["allow", "review", "step_up", "block"] },
+        "rules_fired": {
+          "description": "En Fase I siempre vacía.",
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "enrichment": {
+          "description": "Reservado para Fase II (GeoIP, huella). Abierto a propósito para no subir la versión del esquema.",
+          "type": "object"
+        }
+      }
+    },
+    "Identity": {
+      "description": "Datos con los que el Gateway deriva actor_id (usuario, dispositivo, IP, en ese orden). La IP es obligatoria porque es el último respaldo. En login_attempt, user_id es el identificador que se intentó usar.",
+      "type": "object",
+      "required": ["ip_address"],
+      "properties": {
+        "user_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "device_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "ip_address": {
+          "type": "string",
+          "anyOf": [{ "format": "ipv4" }, { "format": "ipv6" }]
+        }
+      },
+      "additionalProperties": false
+    },
+    "PayloadByType": {
+      "description": "Discrimina el payload según event_type.",
+      "allOf": [
+        {
+          "if": { "properties": { "event_type": { "const": "login_attempt" } }, "required": ["event_type"] },
+          "then": { "properties": { "payload": { "$ref": "#/$defs/LoginAttemptPayload" } } }
+        },
+        {
+          "if": { "properties": { "event_type": { "const": "account_created" } }, "required": ["event_type"] },
+          "then": { "properties": { "payload": { "$ref": "#/$defs/AccountCreatedPayload" } } }
+        },
+        {
+          "if": { "properties": { "event_type": { "const": "cart_action" } }, "required": ["event_type"] },
+          "then": { "properties": { "payload": { "$ref": "#/$defs/CartActionPayload" } } }
+        },
+        {
+          "if": { "properties": { "event_type": { "const": "transaction" } }, "required": ["event_type"] },
+          "then": { "properties": { "payload": { "$ref": "#/$defs/TransactionPayload" } } }
+        },
+        {
+          "if": { "properties": { "event_type": { "const": "read" } }, "required": ["event_type"] },
+          "then": { "properties": { "payload": { "$ref": "#/$defs/ReadPayload" } } }
+        },
+        {
+          "if": { "properties": { "event_type": { "const": "transaction_outcome" } }, "required": ["event_type"] },
+          "then": { "properties": { "payload": { "$ref": "#/$defs/TransactionOutcomePayload" } } }
+        }
+      ]
+    },
+    "LoginAttemptPayload": {
+      "type": "object",
+      "required": ["success", "method"],
+      "properties": {
+        "success": { "type": "boolean" },
+        "method": { "enum": ["password", "otp", "sso", "token"] },
+        "failure_reason": { "enum": ["bad_credentials", "unknown_user", "locked", "mfa_failed"] }
+      },
+      "additionalProperties": false
+    },
+    "AccountCreatedPayload": {
+      "type": "object",
+      "required": ["registration_channel", "email_domain"],
+      "properties": {
+        "registration_channel": { "enum": ["web", "mobile", "api"] },
+        "email_domain": {
+          "description": "Solo el dominio, no el correo completo.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255
+        },
+        "referral_code": { "type": "string", "minLength": 1, "maxLength": 64 }
+      },
+      "additionalProperties": false
+    },
+    "CartActionPayload": {
+      "type": "object",
+      "required": ["action", "sku", "quantity"],
+      "properties": {
+        "action": { "enum": ["add", "remove", "update_quantity"] },
+        "sku": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "quantity": { "type": "integer", "minimum": 1 },
+        "unit_price": { "$ref": "#/$defs/Money" }
+      },
+      "additionalProperties": false
+    },
+    "TransactionPayload": {
+      "type": "object",
+      "required": ["amount", "items", "payment_method", "payment_instrument_id"],
+      "properties": {
+        "amount": { "$ref": "#/$defs/Money" },
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/LineItem" }
+        },
+        "payment_method": { "enum": ["card", "wallet", "bank_transfer"] },
+        "payment_instrument_id": {
+          "description": "Identificador opaco del medio de pago (token o hash). Nunca el número.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "shipping_country": { "type": "string", "pattern": "^[A-Z]{2}$" },
+        "promo_code": { "type": "string", "minLength": 1, "maxLength": 64 }
+      },
+      "additionalProperties": false
+    },
+    "ReadPayload": {
+      "type": "object",
+      "required": ["resource_type", "resource_id"],
+      "properties": {
+        "resource_type": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "resource_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "resource_owner_id": {
+          "description": "Dueño del recurso, si el cliente lo informa. Permite detectar lecturas de recursos ajenos.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "additionalProperties": false
+    },
+    "TransactionOutcomePayload": {
+      "description": "Resultado de una transacción ya decidida. Debe referenciar el evento original por client_request_id o por event_id.",
+      "type": "object",
+      "required": ["outcome"],
+      "properties": {
+        "original_client_request_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "original_event_id": { "$ref": "#/$defs/UuidV7" },
+        "outcome": { "enum": ["completed", "failed", "cancelled"] },
+        "failure_reason": { "type": "string", "minLength": 1, "maxLength": 128 }
+      },
+      "anyOf": [
+        { "required": ["original_client_request_id"] },
+        { "required": ["original_event_id"] }
+      ],
+      "additionalProperties": false
+    },
+    "LineItem": {
+      "type": "object",
+      "required": ["sku", "quantity", "unit_price"],
+      "properties": {
+        "sku": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "quantity": { "type": "integer", "minimum": 1 },
+        "unit_price": { "$ref": "#/$defs/Money" }
+      },
+      "additionalProperties": false
+    },
+    "Money": {
+      "description": "Importe en unidades menores (centavos), entero: evita errores de coma flotante.",
+      "type": "object",
+      "required": ["amount_minor", "currency"],
+      "properties": {
+        "amount_minor": { "type": "integer", "minimum": 0 },
+        "currency": { "type": "string", "pattern": "^[A-Z]{3}$" }
+      },
+      "additionalProperties": false
+    },
+    "Timestamp": {
+      "description": "RFC 3339.",
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,9})?(Z|[+-]\\d{2}:\\d{2})$"
+    },
+    "UuidV7": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    }
+  }
+}
