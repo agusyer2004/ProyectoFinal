@@ -65,7 +65,7 @@ Objetivo: `make up` levanta Kafka, las dos instancias de Redis y TimescaleDB, sa
 - [ ] **2.5 Redis B (control).** `maxmemory-policy noeviction` y AOF activado: si se reinicia y pierde los nonces, se abre una ventana de replay del tamaño de la ventana de timestamp.
 - [ ] **2.6 TimescaleDB.** Imagen `timescale/timescaledb` con PostgreSQL reciente, volumen persistente, usuario por servicio (el sink no necesita los mismos permisos que el panel).
 - [ ] **2.7 Healthchecks y orden de arranque.** `depends_on` con `condition: service_healthy`; sin esto, el sink arranca antes que la base y se cae en loop.
-- [ ] **2.8 Perfiles de Compose.** `core` (lo de arriba), `obs` (Bloque 5) y `dev` (una UI de Kafka como kafbat/kafka-ui para mirar tópicos). Así el núcleo levanta liviano.
+- [x] **2.8 Perfiles de Compose.** `core` (lo de arriba), `obs` (Bloque 5) y `dev` (una UI de Kafka como kafbat/kafka-ui para mirar tópicos). Así el núcleo levanta liviano.
 
 **Listo cuando:** `make up && make topics` deja todo `healthy` y podés producir y consumir un mensaje a mano en `events`.
 

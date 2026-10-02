@@ -5,13 +5,16 @@ endif
 COMPOSE ?= docker compose -f deploy/docker-compose.yml
 GO_MODULES := gateway sink
 
-.PHONY: up down test lint topics migrate smoke
+.PHONY: up up-dev down test lint topics migrate smoke
 
 deploy/.env:
 	cp deploy/.env.example deploy/.env
 
 up: deploy/.env
 	$(COMPOSE) --profile core up -d --wait
+
+up-dev: deploy/.env
+	$(COMPOSE) --profile core --profile dev up -d --wait
 
 down:
 	$(COMPOSE) --profile core --profile obs --profile dev down
