@@ -36,14 +36,14 @@ Objetivo: un repo donde `make up` y `make test` funcionen desde el primer día, 
 
 Objetivo: el evento y la API del Gateway escritos y testeados antes de escribir el Gateway. Es el bloque que más retrabajo ahorra.
 
-- [ ] **1.1 JSON Schema v1 del evento.** Un sobre común más un `payload` por tipo, discriminado por `event_type` (`login_attempt`, `account_created`, `cart_action`, `transaction`, `read`, `transaction_outcome`). Campos del sobre:
+- [x] **1.1 JSON Schema v1 del evento.** Un sobre común más un `payload` por tipo, discriminado por `event_type` (`login_attempt`, `account_created`, `cart_action`, `transaction`, `read`, `transaction_outcome`). Campos del sobre:
   - `schema_version`, `event_id` (UUIDv7: ordenable por tiempo, útil para la hypertable), `event_type`, `trace_id`.
   - `actor_id` y `actor_id_source` (`user` | `device` | `ip`), para dejar explícita la regla de respaldo.
   - `occurred_at` (lo informa el cliente) y `received_at` (lo pone el Gateway). Son dos relojes distintos; no los mezcles.
   - `client_request_id`: identificador que manda el cliente. Sirve para unir el evento con la etiqueta de verdad del simulador (ver 1.2).
   - `decision` y `rules_fired` (en Fase I siempre `allow` y lista vacía, pero el campo ya existe).
   - Bloque `enrichment` vacío u opcional: GeoIP y huella llegan en Fase II, pero reservar el lugar evita una versión nueva del esquema.
-- [ ] **1.2 Las etiquetas de fraude NO viajan en el evento.** Si el campo `is_fraud` pasa por el Gateway, cualquier detector futuro podría leerlo por error y la evaluación queda contaminada. El simulador guarda las etiquetas en su propio log, indexadas por `client_request_id`, y la unión se hace al evaluar. Anotarlo como ADR: es un argumento metodológico para la tesis.
+- [x] **1.2 Las etiquetas de fraude NO viajan en el evento.** Si el campo `is_fraud` pasa por el Gateway, cualquier detector futuro podría leerlo por error y la evaluación queda contaminada. El simulador guarda las etiquetas en su propio log, indexadas por `client_request_id`, y la unión se hace al evaluar. Anotarlo como ADR: es un argumento metodológico para la tesis.
 - [ ] **1.3 Fixtures.** Un JSON válido por cada `event_type` y una batería de inválidos (campo faltante, tipo incorrecto, `event_type` desconocido). Son la base de los tests de contrato.
 - [ ] **1.4 Tests de contrato en ambos lenguajes.** Python con `jsonschema`; Go con un validador que soporte draft 2020-12 (por ejemplo `santhosh-tekuri/jsonschema`). Además del test de fixtures, un test de ida y vuelta: lo que serializan los structs de Go tiene que validar contra el esquema.
 - [ ] **1.5 Contrato HTTP del Gateway (OpenAPI).** `POST /v1/events` para operaciones y resultados (el resultado es otro `event_type`). Cabeceras: API key, firma HMAC, timestamp, nonce, `Idempotency-Key`. Respuesta: `decision`, `event_id`, `trace_id`, `reasons`. Códigos de error: 400 esquema inválido, 401 firma, 409 nonce repetido (aunque se implemente en Fase II), 503 no listo. También `GET /healthz` y `GET /readyz`.
