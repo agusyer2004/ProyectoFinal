@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "event_type": "cart_action",
+  "client_request_id": "req-cart",
+  "occurred_at": "2026-10-05T10:00:00.250Z",
+  "session_id": "sess-001",
+  "identity": {
+    "user_id": "user-1001",
+    "device_id": "dev-77",
+    "ip_address": "203.0.113.10"
+  },
+  "payload": {
+    "action": "add",
+    "sku": "SKU-123",
+    "quantity": 2,
+    "unit_price": {
+      "amount_minor": 150000,
+      "currency": "ARS"
+    }
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "event_type": "transaction",
+  "client_request_id": "req-tx",
+  "occurred_at": "2026-10-05T10:00:00.250Z",
+  "session_id": "sess-001",
+  "identity": {
+    "user_id": "user-1001",
+    "device_id": "dev-77",
+    "ip_address": "203.0.113.10"
+  },
+  "payload": {
+    "amount": {
+      "amount_minor": 300000,
+      "currency": "ARS"
+    },
+    "items": [
+      {
+        "sku": "SKU-123",
+        "quantity": 2,
+        "unit_price": {
+          "amount_minor": 150000,
+          "currency": "ARS"
+        }
+      }
+    ],
+    "payment_method": "card",
+    "payment_instrument_id": "tok_9f8e7d",
+    "shipping_country": "AR",
+    "promo_code": "OCT10"
+  },
+  "event_id": "01927f3e-8b1a-7c3d-9a4b-1234567890ab",
+  "trace_id": "0af7651916cd43dd8448eb211c80319c",
+  "received_at": "2026-10-05T10:00:00.400Z",
+  "actor_id": "user-1001",
+  "actor_id_source": "user",
+  "decision": "allow",
+  "rules_fired": []
+}

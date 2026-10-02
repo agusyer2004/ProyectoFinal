@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "event_type": "login_attempt",
+  "client_request_id": "req-login",
+  "occurred_at": "2026-10-05T10:00:00.250Z",
+  "session_id": "sess-001",
+  "identity": {
+    "user_id": "user-1001",
+    "device_id": "dev-77",
+    "ip_address": "203.0.113.10"
+  },
+  "payload": {
+    "success": false,
+    "method": "password",
+    "failure_reason": "bad_credentials",
+    "fraud_type": "stuffing"
+  }
+}

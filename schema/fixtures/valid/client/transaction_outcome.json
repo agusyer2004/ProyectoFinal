@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "event_type": "transaction_outcome",
+  "client_request_id": "req-outcome",
+  "occurred_at": "2026-10-05T10:00:00.250Z",
+  "session_id": "sess-001",
+  "identity": {
+    "user_id": "user-1001",
+    "device_id": "dev-77",
+    "ip_address": "203.0.113.10"
+  },
+  "payload": {
+    "original_client_request_id": "req-tx",
+    "outcome": "completed"
+  }
+}

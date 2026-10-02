@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "event_type": "account_created",
+  "client_request_id": "req-account",
+  "occurred_at": "2026-10-05T10:00:00.250Z",
+  "session_id": "sess-001",
+  "identity": {
+    "user_id": "user-1001",
+    "device_id": "dev-77",
+    "ip_address": "203.0.113.10"
+  },
+  "payload": {
+    "registration_channel": "web",
+    "email_domain": "example.com",
+    "referral_code": "FRIEND10"
+  }
+}
