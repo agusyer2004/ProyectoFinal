@@ -24,10 +24,10 @@ lint:
 	@for m in $(GO_MODULES); do (cd $$m && golangci-lint run ./...) || exit 1; done
 	cd simulator && uv run ruff check . && uv run ruff format --check .
 
-# Los siguientes objetivos se implementan en bloques posteriores.
-topics:
-	@echo "pendiente: Bloque 2.3"; exit 1
+topics: deploy/.env
+	$(COMPOSE) --profile core --profile init run --rm kafka-init
 
+# Los siguientes objetivos se implementan en bloques posteriores.
 migrate:
 	@echo "pendiente: Bloque 3.1"; exit 1
 

@@ -39,5 +39,28 @@ services:
       retries: 12
       start_period: 20s
 
+  # Corre create-topics.sh y termina. Se lanza con `make topics`, no con `make up`.
+  kafka-init:
+    profiles: [init]
+    image: ${KAFKA_IMAGE}
+    depends_on:
+      kafka:
+        condition: service_healthy
+    restart: "no"
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      EVENTS_PARTITIONS: ${EVENTS_PARTITIONS}
+      ALERTS_PARTITIONS: ${ALERTS_PARTITIONS}
+      ACTOR_RISK_PARTITIONS: ${ACTOR_RISK_PARTITIONS}
+      DLQ_PARTITIONS: ${DLQ_PARTITIONS}
+      POLICIES_PARTITIONS: ${POLICIES_PARTITIONS}
+      EVENTS_RETENTION_DAYS: ${EVENTS_RETENTION_DAYS}
+      ALERTS_RETENTION_DAYS: ${ALERTS_RETENTION_DAYS}
+      DLQ_RETENTION_DAYS: ${DLQ_RETENTION_DAYS}
+      COMPACT_SEGMENT_MS: ${COMPACT_SEGMENT_MS}
+    volumes:
+      - ./kafka/create-topics.sh:/create-topics.sh:ro
+    entrypoint: ["/bin/sh", "/create-topics.sh"]
+
 volumes:
   kafka-data:
