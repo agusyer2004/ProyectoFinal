@@ -1,0 +1,136 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="Contenedores v4" id="anomalous-c4-v4">
+    <mxGraphModel dx="1400" dy="900" grid="1" page="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" pageScale="1" pageWidth="1600" pageHeight="1300" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="ext_analista" parent="1" vertex="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=50;strokeWidth=2;fillColor=#eeeeee;strokeColor=#999999;fontStyle=1;" value="Analista de seguridad&#10;[Persona]">
+          <mxGeometry x="40" y="60" width="200" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ext_ecom" parent="1" vertex="1" style="rounded=0;whiteSpace=wrap;html=1;fontSize=11;fillColor=#f5f5f5;strokeColor=#666666;" value="Cliente: Plataforma E-commerce / Sistema B2B&#10;[Sistema Externo]&#10;Informa cada operación ANTES de ejecutarla y su resultado DESPUÉS (incl. resultado del step_up). Recolecta e informa la huella de dispositivo.&#10;Aplica step_up / review. Timeout propio = fail-open">
+          <mxGeometry x="400" y="30" width="340" height="105" as="geometry" />
+        </mxCell>
+        <mxCell id="ext_sim" parent="1" vertex="1" style="rounded=0;whiteSpace=wrap;html=1;fontSize=11;fillColor=#f5f5f5;strokeColor=#666666;" value="Simulador de tráfico&#10;[Sistema Externo - desarrollo propio]&#10;Emula al cliente: firma, huella, resultados, catálogo. Escenarios congelados, registrados como logs reinyectables (replay)">
+          <mxGeometry x="800" y="30" width="270" height="105" as="geometry" />
+        </mxCell>
+        <mxCell id="ext_fuentes" parent="1" vertex="1" style="rounded=0;whiteSpace=wrap;html=1;dashed=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="Fuentes externas de señal&#10;Webhook de contracargos / CDC (Debezium) sobre BD del cliente&#10;[TRABAJO FUTURO - fraudes #13 y #17]">
+          <mxGeometry x="1150" y="40" width="270" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="sys" parent="1" vertex="1" style="swimlane;startSize=30;html=1;fontStyle=1;fillColor=none;strokeColor=#444444;dashed=1;" value="Anomalous - Sistema de detección de anomalías transaccionales [Docker Compose]">
+          <mxGeometry x="40" y="230" width="1420" height="960" as="geometry" />
+        </mxCell>
+        <mxCell id="fe" parent="sys" vertex="1" style="rounded=0;whiteSpace=wrap;html=1;fontSize=11;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="Panel de observabilidad + backend / API REST&#10;&#10;[Next.js / TypeScript / Tailwind]&#10;Alertas con explicación (features), auditoría, consulta histórica&#10;Cola de casos en review; gestión de políticas&#10;Feedback verdadero/falso positivo, override de riesgo&#10;RBAC (analista / admin / auditor)">
+          <mxGeometry x="40" y="60" width="260" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="gw" parent="sys" vertex="1" style="rounded=0;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="Gateway concurrente - API de DECISIÓN&#10;&#10;[Go - goroutines]&#10;READINESS: no recibe tráfico hasta leer actor-risk y policies hasta el end-offset&#10;Auth cliente: API key / mTLS + firma HMAC (timestamp + nonce)&#10;Enriquecimiento: GeoIP, bloques CIDR, normalización/hash de device fingerprint&#10;Velocidad: contadores atómicos en Redis + capa local gruesa (LRU + TTL, locks particionados)&#10;Determinista: precio vs catálogo (caché versionada), cantidad, nonce / idempotencia, lock por recurso&#10;Consulta estado de riesgo del actor → allow / review / step_up / block&#10;Falla POR REGLA: velocidad fail-open; idempotencia y locks fail-closed (fallback local solo con sticky routing por actor)&#10;Propaga trace_id (OpenTelemetry)&#10;Fraudes #1-#5, #10, #14, #15, #16">
+          <mxGeometry x="540" y="40" width="420" height="270" as="geometry" />
+        </mxCell>
+        <mxCell id="rds2" parent="sys" vertex="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=12;fontSize=11;fillColor=#ffe6cc;strokeColor=#d79b00;" value="Redis B - control (noeviction)&#10;&#10;Claves de idempotencia, nonces y locks por recurso">
+          <mxGeometry x="1070" y="40" width="330" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="rds1" parent="sys" vertex="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=12;fontSize=10;fillColor=#ffe6cc;strokeColor=#d79b00;" value="Redis A - contadores y perfiles (volatile-ttl)&#10;&#10;Contadores de velocidad (ventana deslizante Lua / GCRA), TTL corto: descartables.&#10;Perfiles calientes incrementales (Welford / EWMA), TTL largo, con número de secuencia (offset) por actualización. Snapshot periódico a TimescaleDB">
+          <mxGeometry x="1070" y="170" width="330" height="125" as="geometry" />
+        </mxCell>
+        <mxCell id="ntf" parent="sys" vertex="1" style="rounded=0;whiteSpace=wrap;html=1;fontSize=11;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="Servicio de Notificaciones&#10;&#10;[Go]&#10;Puente Kafka (topic alerts) → WebSockets. Solo tiempo real">
+          <mxGeometry x="40" y="380" width="260" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="scr" parent="sys" vertex="1" style="rounded=0;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="Scorer de Streaming&#10;&#10;[Python - consumer group, micro-lotes]&#10;Isolation Forest / Z-score vectorizado por lote de N eventos&#10;Único escritor del perfil caliente; escritura condicionada por offset (Lua) ante rebalanceos; membresía estática&#10;Alertas con explicación de features&#10;Modo sombra: puntúa con modelo challenger&#10;Módulo de features compartido con el batch. No persiste eventos. Recarga modelo en caliente&#10;Fraudes #6, #7, #16, #18. FastAPI solo admin/health">
+          <mxGeometry x="330" y="360" width="290" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="kfk" parent="sys" vertex="1" style="rounded=0;whiteSpace=wrap;html=1;fontSize=11;fillColor=#ffe6cc;strokeColor=#d79b00;" value="Bus de Eventos&#10;&#10;[Apache Kafka - KRaft, 1 broker (sin replicación), acks=all + idempotencia]&#10;events (key=actor_id) | alerts | dlq&#10;actor-risk (compactado, tombstones al expirar) | policies (compactado)&#10;Esquema versionado con event_type y trace_id (JSON Schema)">
+          <mxGeometry x="660" y="370" width="380" height="170" as="geometry" />
+        </mxCell>
+        <mxCell id="obs" parent="sys" vertex="1" style="rounded=0;whiteSpace=wrap;html=1;fontSize=11;fillColor=#f8cecc;strokeColor=#b85450;dashed=1;" value="Observabilidad interna&#10;&#10;[Prometheus + Grafana + OpenTelemetry + JMX exporter + kafka-exporter]&#10;TPS, P50/P99, lag por partición, events_dropped_total, memoria de Gateway y Redis; trazas evento → alerta → decisión modificada">
+          <mxGeometry x="1090" y="380" width="310" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="sink" parent="sys" vertex="1" style="rounded=0;whiteSpace=wrap;html=1;fontSize=11;fillColor=#d5e8d4;strokeColor=#82b366;" value="Sink de persistencia&#10;&#10;[Kafka Connect JDBC (preferido) / consumer en Go]&#10;Consumer group propio. Escritura idempotente: ON CONFLICT (event_id)">
+          <mxGeometry x="40" y="660" width="260" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="tsdb" parent="sys" vertex="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fontSize=10;fillColor=#e1d5e7;strokeColor=#9673a6;" value="TimescaleDB&#10;&#10;Hypertable de eventos + continuous aggregates (ventanas largas, arranque en frío) + alertas + etiquetas del analista + catálogo + versiones de modelos + snapshots de perfiles. Retención y compresión">
+          <mxGeometry x="340" y="660" width="270" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="bat" parent="sys" vertex="1" style="rounded=0;whiteSpace=wrap;html=1;fontSize=10;fillColor=#d5e8d4;strokeColor=#82b366;" value="Analizador Batch&#10;&#10;[Python + NetworkX - jobs programados (APScheduler / cron)]&#10;Triangulación (#8), promo abuse (#9), smurfing (#11), colusión (#19): grafos de entidades compartidas, componentes conexos&#10;Bust-out (#12) por features de trayectoria (7 d vs 90 d)&#10;Monitoreo de salud del modelo (concept drift)&#10;Reentrenamiento sin eventos marcados como fraude">
+          <mxGeometry x="660" y="660" width="380" height="170" as="geometry" />
+        </mxCell>
+        <mxCell id="mreg" parent="sys" vertex="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=12;fontSize=11;fillColor=#e1d5e7;strokeColor=#9673a6;" value="Registro de modelos&#10;&#10;[MinIO / volumen + tabla de versiones]&#10;Modelos versionados; recarga en caliente y carga de challenger (modo sombra)">
+          <mxGeometry x="1090" y="660" width="310" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="evalt" parent="sys" vertex="1" style="rounded=0;whiteSpace=wrap;html=1;fontSize=10;fillColor=#f8cecc;strokeColor=#b85450;dashed=1;" value="Herramientas de evaluación&#10;&#10;[Toxiproxy + replay de escenarios + testcontainers en CI]&#10;Toxiproxy: inyecta latencia / corte entre Gateway y Redis, y en Kafka (pruebas de caos de la matriz de falla). Replay: reinyecta logs de escenarios congelados contra cada versión">
+          <mxGeometry x="840" y="860" width="560" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="legend" parent="sys" vertex="1" style="rounded=0;whiteSpace=wrap;html=1;fontSize=10;align=left;fillColor=#ffffff;strokeColor=#cccccc;" value="Leyenda: azul = presentación | verde = cómputo propio | naranja = mensajería y estado rápido | violeta = persistencia | rojo punteado = observabilidad y evaluación | flecha roja gruesa = lazo de mitigación (detección → decisión)">
+          <mxGeometry x="40" y="860" width="760" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" parent="1" edge="1" source="ext_ecom" target="gw" style="endArrow=classic;html=1;rounded=0;labelBackgroundColor=#ffffff;fontSize=10;exitX=0.5;exitY=1;entryX=0.3;entryY=0;startArrow=classic;" value="Informa operación (HTTPS/JSON firmado) y recibe decisión;&#10;luego informa resultado. Timeout corto del cliente = fail-open">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="e2" parent="1" edge="1" source="ext_sim" target="gw" style="endArrow=classic;html=1;rounded=0;labelBackgroundColor=#ffffff;fontSize=10;exitX=0.5;exitY=1;entryX=0.7;entryY=0;" value="Inyecta tráfico legítimo y fraudes etiquetados (o replay)&#10;[HTTPS/JSON - desde otro host, chrony]">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="e3" parent="1" edge="1" source="ext_analista" target="fe" style="endArrow=classic;html=1;rounded=0;labelBackgroundColor=#ffffff;fontSize=10;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" value="Consulta alertas, resuelve casos review, etiqueta, administra políticas [HTTPS]">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="e4" parent="1" edge="1" source="ext_fuentes" target="kfk" style="endArrow=classic;html=1;rounded=0;labelBackgroundColor=#ffffff;fontSize=10;dashed=1;exitX=0.5;exitY=1;entryX=0.92;entryY=0;" value="TRABAJO FUTURO: contracargos (#13)&#10;y CDC (#17) [Kafka Connect]">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="1285" y="180" /><mxPoint x="1050" y="180" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="i1" parent="sys" edge="1" source="gw" target="rds1" style="endArrow=classic;html=1;rounded=0;labelBackgroundColor=#ffffff;fontSize=10;startArrow=classic;exitX=1;exitY=0.75;entryX=0;entryY=0.5;" value="Contadores atómicos [RESP]">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="i1b" parent="sys" edge="1" source="gw" target="rds2" style="endArrow=classic;html=1;rounded=0;labelBackgroundColor=#ffffff;fontSize=10;startArrow=classic;exitX=1;exitY=0.2;entryX=0;entryY=0.5;" value="SET NX: nonce, idempotencia, locks [RESP]">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="i2" parent="sys" edge="1" source="gw" target="kfk" style="endArrow=classic;html=1;rounded=0;labelBackgroundColor=#ffffff;fontSize=10;exitX=0.3;exitY=1;entryX=0.2;entryY=0;" value="Publica TODOS los eventos (aprobados y bloqueados)&#10;con decision, rules_fired y trace_id. key=actor_id, buffer acotado">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="i2b" parent="sys" edge="1" source="kfk" target="gw" style="endArrow=classic;html=1;rounded=0;labelBackgroundColor=#ffffff;fontSize=10;strokeColor=#b85450;strokeWidth=3;fontColor=#b85450;fontStyle=1;exitX=0.6;exitY=0;entryX=0.75;entryY=1;" value="LAZO DE MITIGACIÓN: actor-risk y policies&#10;→ estado de riesgo en memoria (carga completa al arrancar)">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="i3" parent="sys" edge="1" source="kfk" target="scr" style="endArrow=classic;html=1;rounded=0;labelBackgroundColor=#ffffff;fontSize=10;exitX=0;exitY=0.3;entryX=1;entryY=0.3;" value="Consume events en lotes [consumer group]">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="i4" parent="sys" edge="1" source="scr" target="kfk" style="endArrow=classic;html=1;rounded=0;labelBackgroundColor=#ffffff;fontSize=10;strokeColor=#b85450;exitX=1;exitY=0.75;entryX=0;entryY=0.8;" value="Publica alerts (con explicación) y actor-risk;&#10;venenosos → dlq">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="i5" parent="sys" edge="1" source="scr" target="rds1" style="endArrow=classic;html=1;rounded=0;labelBackgroundColor=#ffffff;fontSize=10;startArrow=classic;exitX=0.75;exitY=0;entryX=0.5;entryY=1;" value="Perfil caliente del actor (lee / actualiza con secuencia) [RESP]">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="547" y="320" /><mxPoint x="1235" y="320" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="i6" parent="sys" edge="1" source="scr" target="tsdb" style="endArrow=classic;html=1;rounded=0;labelBackgroundColor=#ffffff;fontSize=10;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" value="Lee continuous aggregates&#10;(nunca agregación ad hoc) [SQL]">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="i7" parent="sys" edge="1" source="kfk" target="sink" style="endArrow=classic;html=1;rounded=0;labelBackgroundColor=#ffffff;fontSize=10;exitX=0.18;exitY=1;entryX=0.5;entryY=0;" value="Consume events, alerts, dlq&#10;(consumer group propio)">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="728" y="610" /><mxPoint x="170" y="610" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="i8" parent="sys" edge="1" source="sink" target="tsdb" style="endArrow=classic;html=1;rounded=0;labelBackgroundColor=#ffffff;fontSize=10;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" value="Escribe idempotente [SQL]">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="i9" parent="sys" edge="1" source="bat" target="tsdb" style="endArrow=classic;html=1;rounded=0;labelBackgroundColor=#ffffff;fontSize=10;startArrow=classic;exitX=0;exitY=0.5;entryX=1;entryY=0.5;" value="Jobs periódicos [SQL]">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="i10" parent="sys" edge="1" source="bat" target="kfk" style="endArrow=classic;html=1;rounded=0;labelBackgroundColor=#ffffff;fontSize=10;strokeColor=#b85450;exitX=0.6;exitY=0;entryX=0.6;entryY=1;" value="Publica alertas batch y actor-risk">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="i11" parent="sys" edge="1" source="bat" target="mreg" style="endArrow=classic;html=1;rounded=0;labelBackgroundColor=#ffffff;fontSize=10;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" value="Guarda modelo versionado">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="i12" parent="sys" edge="1" source="mreg" target="scr" style="endArrow=classic;html=1;rounded=0;labelBackgroundColor=#ffffff;fontSize=10;exitX=0.5;exitY=0;entryX=0.75;entryY=1;" value="Recarga en caliente (champion) y carga challenger">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="1245" y="585" /><mxPoint x="547" y="585" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="i13" parent="sys" edge="1" source="kfk" target="ntf" style="endArrow=classic;html=1;rounded=0;labelBackgroundColor=#ffffff;fontSize=10;exitX=0.08;exitY=1;entryX=0.5;entryY=1;" value="Consume alerts">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="690" y="565" /><mxPoint x="170" y="565" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="i14" parent="sys" edge="1" source="ntf" target="fe" style="endArrow=classic;html=1;rounded=0;labelBackgroundColor=#ffffff;fontSize=10;exitX=0.5;exitY=0;entryX=0.5;entryY=1;" value="Push de alertas [WebSockets]">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="i15" parent="sys" edge="1" source="fe" target="kfk" style="endArrow=classic;html=1;rounded=0;labelBackgroundColor=#ffffff;fontSize=10;strokeColor=#b85450;exitX=1;exitY=0.3;entryX=0.04;entryY=0;" value="Publica policies y override en actor-risk">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="430" y="105" /><mxPoint x="430" y="335" /><mxPoint x="675" y="335" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="i16" parent="sys" edge="1" source="fe" target="tsdb" style="endArrow=classic;html=1;rounded=0;labelBackgroundColor=#ffffff;fontSize=10;startArrow=classic;exitX=1;exitY=0.8;entryX=0.25;entryY=0;" value="Consulta histórica,&#10;auditoría, casos y etiquetas [SQL]">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="320" y="180" /><mxPoint x="320" y="640" /><mxPoint x="407" y="640" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="i17" parent="sys" edge="1" source="obs" target="kfk" style="endArrow=classic;html=1;rounded=0;labelBackgroundColor=#ffffff;fontSize=10;dashed=1;exitX=0;exitY=0.5;entryX=1;entryY=0.5;" value="Scrape: lag por partición, TPS, P99&#10;y trazas (también Gateway, Scorer, Sink y Redis)">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
