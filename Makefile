@@ -21,11 +21,11 @@ down:
 
 test:
 	@for m in $(GO_MODULES); do (cd $$m && go test ./...) || exit 1; done
-	cd simulator && uv run pytest
+	cd simulator && uv run pytest tests ../deploy/tests
 
 lint:
 	@for m in $(GO_MODULES); do (cd $$m && golangci-lint run ./...) || exit 1; done
-	cd simulator && uv run ruff check . && uv run ruff format --check .
+	cd simulator && uv run ruff check . ../deploy/tests && uv run ruff format --check . ../deploy/tests
 
 topics: deploy/.env
 	$(COMPOSE) --profile core --profile init run --rm kafka-init
