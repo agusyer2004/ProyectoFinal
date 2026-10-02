@@ -4,6 +4,7 @@ Oct 1, 2026 · @agusyer
 
 ## Cómo usar este roadmap
 
+
 La regla de orden es una sola: **que un evento atraviese todo el sistema lo antes posible, y recién después engordar cada pieza**. En la semana 5 tendría que existir un `curl` que termina como fila en TimescaleDB; todo lo demás de la Fase I es endurecer ese camino, medirlo y alimentarlo con el simulador.
 
 Principios que justifican el orden:
@@ -54,8 +55,8 @@ Objetivo: el evento y la API del Gateway escritos y testeados antes de escribir 
 
 Objetivo: `make up` levanta Kafka, las dos instancias de Redis y TimescaleDB, sanos y con los tópicos creados.
 
-- [ ] **2.1 Kafka en KRaft, un nodo.** Imagen oficial `apache/kafka` (4.x), con el mismo proceso como broker y controller. Con un solo broker hay que bajar a 1 los factores de replicación internos (`offsets.topic.replication.factor`, `transaction.state.log.replication.factor`, `transaction.state.log.min.isr`, `min.insync.replicas`); si no, el productor idempotente falla de formas poco claras. Desactivar `auto.create.topics.enable`.
-- [ ] **2.2 Dos listeners.** Uno interno para los contenedores y otro externo para depurar desde tu máquina. El simulador habla HTTP con el Gateway, no con Kafka, así que el listener externo es solo para debugging.
+- [x] **2.1 Kafka en KRaft, un nodo.** Imagen oficial `apache/kafka` (4.x), con el mismo proceso como broker y controller. Con un solo broker hay que bajar a 1 los factores de replicación internos (`offsets.topic.replication.factor`, `transaction.state.log.replication.factor`, `transaction.state.log.min.isr`, `min.insync.replicas`); si no, el productor idempotente falla de formas poco claras. Desactivar `auto.create.topics.enable`.
+- [x] **2.2 Dos listeners.** Uno interno para los contenedores y otro externo para depurar desde tu máquina. El simulador habla HTTP con el Gateway, no con Kafka, así que el listener externo es solo para debugging.
 - [ ] **2.3 Creación de tópicos como código.** Un contenedor de inicialización que corre `kafka-topics.sh` y termina:
   - `events`: elegir las particiones ahora (por ejemplo 12, divisible por 1, 2, 3, 4 y 6 procesos de scorer). Agregar particiones después cambia qué partición le toca a cada `actor_id` y rompe el orden por actor.
   - `alerts`, `dlq` (retención más larga).

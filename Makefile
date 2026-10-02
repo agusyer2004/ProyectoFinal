@@ -7,7 +7,10 @@ GO_MODULES := gateway sink
 
 .PHONY: up down test lint topics migrate smoke
 
-up:
+deploy/.env:
+	cp deploy/.env.example deploy/.env
+
+up: deploy/.env
 	$(COMPOSE) --profile core up -d --wait
 
 down:
