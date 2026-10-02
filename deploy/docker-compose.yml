@@ -39,6 +39,37 @@ services:
       retries: 12
       start_period: 20s
 
+  redis-a:
+    profiles: [core]
+    image: ${REDIS_IMAGE}
+    restart: unless-stopped
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+    ports:
+      - "${REDIS_A_PORT}:6379"
+    volumes:
+      - ./redis/redis-a.conf:/usr/local/etc/redis/redis.conf:ro
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis-b:
+    profiles: [core]
+    image: ${REDIS_IMAGE}
+    restart: unless-stopped
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+    ports:
+      - "${REDIS_B_PORT}:6379"
+    volumes:
+      - ./redis/redis-b.conf:/usr/local/etc/redis/redis.conf:ro
+      - redis-b-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   # Corre create-topics.sh y termina. Se lanza con `make topics`, no con `make up`.
   kafka-init:
     profiles: [init]
@@ -64,3 +95,4 @@ services:
 
 volumes:
   kafka-data:
+  redis-b-data:
