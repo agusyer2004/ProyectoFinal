@@ -26,7 +26,7 @@ Objetivo: un repo donde `make up` y `make test` funcionen desde el primer día, 
 
 - [x] **0.1 Monorepo durante el desarrollo.** La propuesta promete repos separados como entregable, pero en Fase I el esquema se comparte entre Go y Python y el Compose orquesta todo. Un monorepo evita sincronizar versiones a mano; se puede partir al final.
 - [x] **0.2 Estructura de carpetas.** Sugerida: `schema/` (JSON Schema + fixtures), `gateway/` (Go), `sink/` (Go), `simulator/` (Python), `deploy/` (Compose, configs de Kafka, Prometheus, Grafana), `migrations/` (SQL), `docs/adr/`, `docs/contracts/`.
-- [ ] **0.3 Tooling.** Go con módulos y `golangci-lint`; Python con `uv` y `ruff`; un `Makefile` raíz con `up`, `down`, `test`, `lint`, `topics`, `migrate`. Pre-commit opcional.
+- [x] **0.3 Tooling.** Go con módulos y `golangci-lint`; Python con `uv` y `ruff`; un `Makefile` raíz con `up`, `down`, `test`, `lint`, `topics`, `migrate`. Pre-commit opcional.
 - [ ] **0.4 CI mínimo.** GitHub Actions que corre lint y tests unitarios de Go y Python. Vacío pero verde: lo importante es que exista antes de que haya código.
 - [x] **0.5 Primeros ADRs.** ADR-001 monorepo; ADR-002 Kafka con un único broker (ya está argumentado en la propuesta, solo pasarlo a formato ADR); ADR-003 cliente de Kafka en Go (ver 3.2).
 
