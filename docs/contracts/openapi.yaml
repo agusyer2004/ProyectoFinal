@@ -1,0 +1,207 @@
+openapi: 3.1.0
+info:
+  title: Anomalous Gateway API
+  version: 1.0.0
+  description: |
+    API de decisión del Gateway. El cliente informa cada operación **antes** de ejecutarla
+    y recibe una decisión; después informa el resultado como un evento `transaction_outcome`.
+
+    ## Autenticación
+    Cada request a `/v1/events` lleva API key y firma HMAC-SHA256 (hex, minúsculas) sobre
+    esta cadena canónica, con las partes separadas por `\n`:
+
+    ```
+    METHOD
+    PATH
+    X-Timestamp
+    X-Nonce
+    hex(sha256(body))
+    ```
+
+    - `X-Timestamp`: segundos Unix. El Gateway rechaza requests fuera de la ventana configurable.
+    - `X-Nonce`: valor aleatorio único por request. La verificación de unicidad (409) llega en Fase II;
+      el contrato ya lo define.
+    - La firma se calcula al **enviar**, nunca al generar un escenario.
+
+    ## Evento
+    El cuerpo es `ClientEvent` del JSON Schema v1 (`schema/event.v1.schema.json`). El cliente no
+    manda `event_id`, `trace_id`, `received_at`, `actor_id`, `decision` ni `rules_fired`: los pone el Gateway.
+    Ningún campo de etiqueta de fraude es válido (ADR-004).
+servers:
+  - url: http://localhost:8080
+    description: Desarrollo local (el puerto es configurable)
+tags:
+  - name: events
+  - name: health
+paths:
+  /v1/events:
+    post:
+      tags: [events]
+      operationId: postEvent
+      summary: Informar una operación o un resultado y obtener la decisión
+      description: |
+        Sirve tanto para operaciones (`login_attempt`, `account_created`, `cart_action`, `transaction`, `read`)
+        como para resultados (`transaction_outcome`). En Fase I la decisión es siempre `allow`.
+        La publicación en Kafka nunca bloquea la respuesta.
+      parameters:
+        - $ref: '#/components/parameters/ApiKey'
+        - $ref: '#/components/parameters/Signature'
+        - $ref: '#/components/parameters/Timestamp'
+        - $ref: '#/components/parameters/Nonce'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '../../schema/event.v1.schema.json#/$defs/ClientEvent'
+      responses:
+        '200':
+          description: Decisión tomada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DecisionResponse'
+        '400':
+          description: El cuerpo no cumple el esquema (`code`=`invalid_schema`) o no es JSON.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: API key desconocida, firma inválida o timestamp fuera de la ventana.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Nonce repetido. Se implementa en Fase II.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: El Gateway no está listo (ver `/readyz`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /healthz:
+    get:
+      tags: [health]
+      operationId: getHealthz
+      summary: Liveness
+      description: El proceso está vivo. No consulta dependencias.
+      responses:
+        '200':
+          description: Vivo.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+  /readyz:
+    get:
+      tags: [health]
+      operationId: getReadyz
+      summary: Readiness
+      description: |
+        Evalúa una lista de condiciones registradas. En Fase I la única es `kafka_producer`;
+        en Fase II se suman `actor_risk_loaded` y `policies_loaded`.
+      responses:
+        '200':
+          description: Listo para decidir.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Readiness'
+        '503':
+          description: Alguna condición no se cumple.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Readiness'
+components:
+  parameters:
+    ApiKey:
+      name: X-Api-Key
+      in: header
+      required: true
+      schema: { type: string, minLength: 1 }
+    Signature:
+      name: X-Signature
+      in: header
+      required: true
+      description: HMAC-SHA256 en hex minúscula de la cadena canónica descrita en la introducción.
+      schema: { type: string, pattern: '^[0-9a-f]{64}$' }
+    Timestamp:
+      name: X-Timestamp
+      in: header
+      required: true
+      description: Segundos Unix en el momento del envío.
+      schema: { type: integer, minimum: 0 }
+    Nonce:
+      name: X-Nonce
+      in: header
+      required: true
+      description: Valor aleatorio único por request.
+      schema: { type: string, minLength: 16, maxLength: 128 }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: Reintentos con la misma clave devuelven la misma decisión. Se aplica en Fase II.
+      schema: { type: string, minLength: 1, maxLength: 128 }
+  schemas:
+    DecisionResponse:
+      type: object
+      required: [decision, event_id, trace_id, reasons]
+      properties:
+        decision:
+          type: string
+          enum: [allow, review, step_up, block]
+        event_id:
+          type: string
+          pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+        trace_id:
+          type: string
+          pattern: '^[0-9a-f]{32}$'
+        reasons:
+          type: array
+          description: Reglas que dispararon la decisión. Vacío en Fase I.
+          items: { type: string }
+      additionalProperties: false
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          enum: [invalid_schema, invalid_json, unauthorized, nonce_reused, not_ready]
+        message: { type: string }
+        trace_id: { type: string }
+        details:
+          type: array
+          description: Errores de validación, para `invalid_schema`.
+          items: { type: string }
+      additionalProperties: false
+    Health:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, const: ok }
+      additionalProperties: false
+    Readiness:
+      type: object
+      required: [status, checks]
+      properties:
+        status: { type: string, enum: [ready, not_ready] }
+        checks:
+          type: object
+          description: Una entrada por condición registrada.
+          additionalProperties:
+            type: object
+            required: [ok]
+            properties:
+              ok: { type: boolean }
+              detail: { type: string }
+      additionalProperties: false
