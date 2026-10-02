@@ -55,8 +55,8 @@ Objetivo: el evento y la API del Gateway escritos y testeados antes de escribir 
 
 Objetivo: `make up` levanta Kafka, las dos instancias de Redis y TimescaleDB, sanos y con los tópicos creados.
 
-- [x] **2.1 Kafka en KRaft, un nodo.** Imagen oficial `apache/kafka` (4.x), con el mismo proceso como broker y controller. Con un solo broker hay que bajar a 1 los factores de replicación internos (`offsets.topic.replication.factor`, `transaction.state.log.replication.factor`, `transaction.state.log.min.isr`, `min.insync.replicas`); si no, el productor idempotente falla de formas poco claras. Desactivar `auto.create.topics.enable`.
-- [x] **2.2 Dos listeners.** Uno interno para los contenedores y otro externo para depurar desde tu máquina. El simulador habla HTTP con el Gateway, no con Kafka, así que el listener externo es solo para debugging.
+- [ ] **2.1 Kafka en KRaft, un nodo.** Imagen oficial `apache/kafka` (4.x), con el mismo proceso como broker y controller. Con un solo broker hay que bajar a 1 los factores de replicación internos (`offsets.topic.replication.factor`, `transaction.state.log.replication.factor`, `transaction.state.log.min.isr`, `min.insync.replicas`); si no, el productor idempotente falla de formas poco claras. Desactivar `auto.create.topics.enable`.
+- [ ] **2.2 Dos listeners.** Uno interno para los contenedores y otro externo para depurar desde tu máquina. El simulador habla HTTP con el Gateway, no con Kafka, así que el listener externo es solo para debugging.
 - [ ] **2.3 Creación de tópicos como código.** Un contenedor de inicialización que corre `kafka-topics.sh` y termina:
   - `events`: elegir las particiones ahora (por ejemplo 12, divisible por 1, 2, 3, 4 y 6 procesos de scorer). Agregar particiones después cambia qué partición le toca a cada `actor_id` y rompe el orden por actor.
   - `alerts`, `dlq` (retención más larga).
@@ -65,7 +65,7 @@ Objetivo: `make up` levanta Kafka, las dos instancias de Redis y TimescaleDB, sa
 - [ ] **2.5 Redis B (control).** `maxmemory-policy noeviction` y AOF activado: si se reinicia y pierde los nonces, se abre una ventana de replay del tamaño de la ventana de timestamp.
 - [ ] **2.6 TimescaleDB.** Imagen `timescale/timescaledb` con PostgreSQL reciente, volumen persistente, usuario por servicio (el sink no necesita los mismos permisos que el panel).
 - [ ] **2.7 Healthchecks y orden de arranque.** `depends_on` con `condition: service_healthy`; sin esto, el sink arranca antes que la base y se cae en loop.
-- [x] **2.8 Perfiles de Compose.** `core` (lo de arriba), `obs` (Bloque 5) y `dev` (una UI de Kafka como kafbat/kafka-ui para mirar tópicos). Así el núcleo levanta liviano.
+- [ ] **2.8 Perfiles de Compose.** `core` (lo de arriba), `obs` (Bloque 5) y `dev` (una UI de Kafka como kafbat/kafka-ui para mirar tópicos). Así el núcleo levanta liviano.
 
 **Listo cuando:** `make up && make topics` deja todo `healthy` y podés producir y consumir un mensaje a mano en `events`.
 
